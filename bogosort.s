@@ -1,18 +1,20 @@
 # bogosort.s
 
 # Reserved registers
-# $t0 - main loop iterator
+# main_loop_iterator - main loop iterator
 .eqv main_loop_iterator $t0
-# $t1 - temporary loop iterator/condition status
+# temp_loop_variable - temporary loop iterator/condition status
 .eqv temp_loop_variable $t1
-# $t2 - linked list current pointer
+# curr_ptr - linked list current pointer
 .eqv curr_ptr $t2
-# $t3 - linked list previous pointer
+# prev_ptr - linked list previous pointer
 .eqv prev_ptr $t3
-# $t4 - linked list head pointer
+# head_ptr - linked list head pointer
 .eqv head_ptr $t4
 # $t8 - variable
 # $t9 - variable
+# ans - most recent answer returned by function call
+.eqv ans ans
 
 # syscall codes
 .eqv print_int_code 1
@@ -67,26 +69,26 @@ syscall
 .end_macro
 
 #5
-.macro read_int() # returns $s0 - int
+.macro read_int() # returns ans - int
 li $v0, read_int_code
 syscall
-move $s0, $v0
+move ans, $v0
 .end_macro
 
 #8
-.macro read_string(%addr, %num_chars) # returns $s0 - address of string
+.macro read_string(%addr, %num_chars) # returns ans - address of string
 li $v0, read_string_code
 # TODO
 syscall
-move $s0, $v0
+move ans, $v0
 .end_macro
 
 # 9
-.macro malloc(%num_bytes) # returns $s0 - address of block
+.macro malloc(%num_bytes) # returns ans - address of block
 li $v0, sbrk_code
 li $a0, %num_bytes
 syscall
-move $s0, $v0
+move ans, $v0
 .end_macro
 
 # 10
@@ -122,19 +124,19 @@ end_while:
 # TODO: remove
 .macro while_body
 print_string("Hello, World!\n")
-addi $t0, $t0, -1 # update $rCond
+addi main_loop_iterator, main_loop_iterator, -1 # update $rCond
 .end_macro
 
 # linked list functions
 .macro init_head() # hack: head node will be empty
 malloc(node_size_num_bytes)
-move $t4, $s0 # initialize head pointer
-move $t2, $t4 # set current pointer to head
+move head_ptr, ans # initialize head pointer
+move curr_ptr, head_ptr # set current pointer to head
 .end_macro
 
 .macro increment_pointers
-move $t3, $t2 # update previous pointer
-lw $t2, ptr_offset($t2) # update current pointer
+move prev_ptr, curr_ptr # update previous pointer
+lw curr_ptr, ptr_offset(curr_ptr) # update current pointer
 .end_macro
 
 .macro store_data(%rAddr, %rPrevPtr, %rData)
@@ -145,40 +147,38 @@ sw %rData, data_offset(%rAddr)
 .end_macro
 
 .macro insert(%idx, %rData)
-mov $t2, $t4 # reset current pointer to head
-for($t1, 0, %idx, increment_pointers)
+mov curr_ptr, head_ptr # reset current pointer to head
+for(temp_loop_variable, 0, %idx, increment_pointers)
 malloc(node_size_num_bytes)
-store_data($s0, $t3, %rData)
+store_data(ans, prev_ptr, %rData)
 .end_macro
 
-.macro enqueue_update
-lw $t8, ptr_offset($t2)
+.macro iteration_update
+lw $t8, ptr_offset(curr_ptr)
 beq $t8, terminating_addr, terminate_enqueue
-j end_enqueue_update
-terminate_enqueue: move $t1, $zero
-end_enqueue_update:
+j end_iteration_update
+terminate_enqueue: move temp_loop_variable, $zero
+end_iteration_update:
 .end_macro
 
 .macro enqueue(%rData) # equivalent to insert(last, data)
-mov $t2, $t4 # reset current pointer to head
-addi $t1, $zero, 1
-while($t1, increment_pointers, enqueue_update)
+mov curr_ptr, head_ptr # reset current pointer to head
+addi temp_loop_variable, $zero, 1
+while(temp_loop_variable, increment_pointers, iteration_update)
 malloc(node_size_num_bytes)
-store_data($s0, $t3, %rData)
+store_data(ans, prev_ptr, %rData)
 .end_macro
 
-.macro print_list_update
-lw $t8, ptr_offset($t2)
-beq $t8, terminating_addr, terminate_enqueue
-j end_enqueue_update
-terminate_enqueue: move $t1, $zero
-end_enqueue_update:
+.macro print_list_loop_body
+lw $t8, data_offset(curr_ptr)
+print_int($t8)
+increment_pointers
 .end_macro
 
 .macro print_list(%rHead)
-mov $t2, $t4 # reset current pointer to head
-addi $t1, $zero, 1
-while($t1, increment_pointers, print_list_update)
+mov curr_ptr, head_ptr # reset current pointer to head
+addi temp_loop_variable, $zero, 1
+while(temp_loop_variable, print_list_loop_body, iteration_update)
 
 .end_macro
 
@@ -192,7 +192,8 @@ while($t1, increment_pointers, print_list_update)
 .macro main_loop_body
 print_string("Enter a real number: ")
 read_int()
-insert($ # TODO
+# TODO: exception handling
+enqueue(ans)
 .end_macro
 
 .macro main_loop_update
@@ -202,11 +203,11 @@ insert($ # TODO
 .text
 .globl main
 main:
-#li $t0, 0
-#for($t0, 0, 4, for_body)
-#li $t0, 4
-#while($t0, while_body)
+#li main_loop_iterator, 0
+#for(main_loop_iterator, 0, 4, for_body)
+#li main_loop_iterator, 4
+#while(main_loop_iterator, while_body)
 init_head()
-while($t0, main_loop_body, main_loop_update)
+while(main_loop_iterator, main_loop_body, main_loop_update)
 # TODO: sort!
 exit()
