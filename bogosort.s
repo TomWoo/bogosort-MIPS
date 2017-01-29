@@ -12,11 +12,13 @@
 .eqv prev_ptr $t3
 # head_ptr - linked list head pointer
 .eqv head_ptr $t4
-# $t8 - variable
-# $t9 - variable
+.eqv index $t5 # index variable
+# $t8 - local variable
+# $t9 - local variable
 
-# ans - most recent answer returned by function call
+# ans - most recent answer returned
 .eqv ans $s0
+.eqv param $s1
 
 ## Constants
 
@@ -73,14 +75,15 @@ syscall
 .end_macro
 
 #5
-.macro read_int() # returns ans - int
+.macro read_int() # returns int
 li $v0, read_int_code
 syscall
 move ans, $v0
+print_int(ans)
 .end_macro
 
 #8
-.macro read_string(%addr, %num_chars) # returns ans - address of string
+.macro read_string(%addr, %num_chars) # returns address of string
 li $v0, read_string_code
 # TODO
 syscall
@@ -88,7 +91,7 @@ move ans, $v0
 .end_macro
 
 # 9
-.macro malloc(%num_bytes) # returns ans - address of block
+.macro malloc(%num_bytes) # returns address of block
 li $v0, sbrk_code
 li $a0, %num_bytes
 syscall
@@ -139,7 +142,7 @@ end_while2:
 .end_macro
 
 # linked list functions
-.macro init_head() # hack: head node will be empty
+.macro init_head() # hack: head is empty
 malloc(node_size_num_bytes)
 print_string("\nmalloc ans: ")
 print_int(ans)
@@ -157,10 +160,21 @@ lw curr_ptr, ptr_offset(curr_ptr) # update current pointer
 .end_macro
 
 .macro store_data(%rAddr, %rPrevPtr, %rData)
+print_string("\nstoring ")
+print_int(%rData)
+print_string(" at ")
+print_int(%rAddr)
 lw $t9, ptr_offset(%rPrevPtr) # save previous pointer
+print_string("\nPrev: ")
+print_int($t9)
 sw %rAddr, ptr_offset(%rPrevPtr) # update previous pointer
 sw $t9, ptr_offset(%rAddr) # set new pointer to saved
 sw %rData, data_offset(%rAddr)
+lw $t8, data_offset(%rAddr)
+print_string("\nstored ")
+print_int($t8)
+print_string(" at ")
+print_int(%rAddr)
 .end_macro
 
 .macro insert(%idx, %rData)
@@ -171,6 +185,7 @@ store_data(ans, prev_ptr, %rData)
 .end_macro
 
 .macro iterate
+addi index, index, 1
 print_string("\ncurr_ptr: ")
 print_int(curr_ptr)
 lw $t8, ptr_offset(curr_ptr)
@@ -186,6 +201,8 @@ increment_pointers
 .end_macro
 
 .macro enqueue(%rData) # equivalent to insert(last, data)
+print_string("\nenqueuing ")
+print_int(%rData)
 move curr_ptr, head_ptr # reset current pointer to head
 addi temp_loop_variable, $zero, 1
 while2(temp_loop_variable, enqueue_body)
@@ -195,12 +212,16 @@ store_data(ans, prev_ptr, %rData)
 
 .macro print_list_loop_body
 lw $t8, data_offset(curr_ptr)
+print_string("\n")
+print_int(index)
+print_string(": ")
 print_int($t8)
 increment_pointers
 iterate
 .end_macro
 
 .macro print_list(%rHead)
+move index, $zero
 move curr_ptr, head_ptr # reset current pointer to head
 addi temp_loop_variable, $zero, 1
 while2(temp_loop_variable, print_list_loop_body)
@@ -217,9 +238,11 @@ while2(temp_loop_variable, print_list_loop_body)
 .macro main_loop_body
 print_string("\nEnter a real number: ")
 read_int()
+print_int(ans)
 # TODO: exception handling
 bltz ans, terminate_main_loop
-enqueue(ans)
+move param, ans
+enqueue(param)
 j end_main_loop_body
 terminate_main_loop: move main_loop_iterator, $zero
 end_main_loop_body:
@@ -229,12 +252,12 @@ end_main_loop_body:
 .globl main
 main:
 print_string("\n\n-- Begin -- ")
-print_int($zero)
 #li main_loop_iterator, 0
 #for(main_loop_iterator, 0, 4, for_body)
 li main_loop_iterator, 4
 #while(main_loop_iterator, while_body)
 init_head()
 while(main_loop_iterator, main_loop_body)
+print_list(head_ptr)
 # TODO: sort!
 exit()
