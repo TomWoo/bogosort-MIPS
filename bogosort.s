@@ -220,7 +220,7 @@ skip_metadata: increment_pointers
 
 #.macro swap(
 
-# RNG
+# random functions
 # TODO
 
 # sorting functions
