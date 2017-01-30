@@ -104,9 +104,9 @@ syscall
 .end_macro
 
 # for loop
-.macro for(%rIter, %lo, %hi, %bodyMacro) # lo <= rIter < hi
-li %rIter, %lo # initialize $rIter
-for_cond: bge %rIter, %hi, end_for
+.macro for(%rIter, %rLo, %rHi, %bodyMacro) # lo <= rIter < hi
+move %rIter, %rLo # initialize $rIter
+for_cond: bge %rIter, %rHi, end_for
 for_loop: %bodyMacro
 addi %rIter, %rIter, 1 # increment $rIter
 j for_cond
@@ -141,7 +141,7 @@ end_while2:
 .end_macro
 
 # linked list functions
-.macro init_head() # head contains list length as data
+.macro init_head() # head contains list length as metadata
 malloc(node_size_num_bytes)
 move head_ptr, ans # initialize head pointer
 move curr_ptr, head_ptr # set current pointer to head
@@ -163,9 +163,9 @@ sw %rData, data_offset(%rAddr)
 lw $t8, data_offset(%rAddr)
 .end_macro
 
-.macro insert(%idx, %rData)
+.macro insert(%rIdx, %rData)
 move curr_ptr, head_ptr # reset current pointer to head
-for(temp_loop_variable, 0, %idx, increment_pointers)
+for(temp_loop_variable, 0, %rIdx, increment_pointers)
 malloc(node_size_num_bytes)
 store_data(ans, prev_ptr, %rData)
 .end_macro
