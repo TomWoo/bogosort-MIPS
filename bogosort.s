@@ -142,7 +142,7 @@ end_while2:
 .end_macro
 
 # linked list functions
-.macro init_head() # hack: head is empty
+.macro init_head() # head contains list length as data
 malloc(node_size_num_bytes)
 print_string("\nmalloc ans: ")
 print_int(ans)
@@ -152,6 +152,7 @@ li $t8, terminating_addr
 print_string("\n0xDEADBEEF: ")
 print_int($t8)
 sw $t8, ptr_offset(head_ptr)
+sw $zero, data_offset(head_ptr)
 .end_macro
 
 .macro increment_pointers
@@ -212,11 +213,12 @@ store_data(ans, prev_ptr, %rData)
 
 .macro print_list_loop_body
 lw $t8, data_offset(curr_ptr)
+beqz index, skip_metadata
 print_string("\n")
 print_int(index)
 print_string(": ")
 print_int($t8)
-increment_pointers
+skip_metadata: increment_pointers
 iterate
 .end_macro
 
@@ -225,7 +227,14 @@ move index, $zero
 move curr_ptr, head_ptr # reset current pointer to head
 addi temp_loop_variable, $zero, 1
 while2(temp_loop_variable, print_list_loop_body)
-
+# print_list_loop_body, except w/o iterate
+lw $t8, data_offset(curr_ptr)
+beqz index, skip_metadata
+print_string("\n")
+print_int(index)
+print_string(": ")
+print_int($t8)
+skip_metadata: increment_pointers
 .end_macro
 
 # RNG
@@ -254,10 +263,13 @@ main:
 print_string("\n\n-- Begin -- ")
 #li main_loop_iterator, 0
 #for(main_loop_iterator, 0, 4, for_body)
-li main_loop_iterator, 4
+#li main_loop_iterator, 4
 #while(main_loop_iterator, while_body)
+
+li main_loop_iterator, 1
 init_head()
 while(main_loop_iterator, main_loop_body)
 print_list(head_ptr)
 # TODO: sort!
+
 exit()
