@@ -13,7 +13,9 @@
 .eqv prev_ptr $t3
 # head_ptr - linked list head pointer
 .eqv head_ptr $t4
-.eqv index $t5 # index variable
+.eqv index $t5 # list index counter
+.eqv lfsr $t6 # LFSR value
+.eqv bit $t7 # feedback bit
 # $t8 - local variable
 # $t9 - local variable
 
@@ -47,13 +49,17 @@
 .eqv node_size_num_bytes 8
 .eqv terminating_addr 0xDEADBEEF # what Trump is made of
 
-.data
-# global variables
-hello_string: .asciiz "Hello, World!\n" # test string
+# RNG constants
+.eqv seed 0xACE1
+# NOTE: The following constants are technically 16 minus each of the taps.
+.eqv tap0 0
+.eqv tap1 2
+.eqv tap2 3
+.eqv tap3 5
 
-# RNG variables
-lfsr: .word 0xACE1
-taps: .word 0, 2, 3, 5
+.data
+# test constants
+hello_string: .asciiz "Hello, World!\n" # test string
 
 # 1
 .macro print_int(%rInt)
@@ -65,6 +71,19 @@ syscall
 .macro print_int_imm(%int)
 li $v0, print_int_code
 li $a0, %int
+syscall
+.end_macro
+
+# 2
+.macro print_float(%rFloat)
+li $v0, print_float_code
+move $a0, %rFloat
+syscall
+.end_macro
+
+.macro print_float_imm(%float)
+li $v0, print_float_code
+li $a0, %float
 syscall
 .end_macro
 
@@ -172,6 +191,10 @@ move curr_ptr, %rHead # reset current pointer to head
 for(temp_loop_variable, 0, %rIdx, increment_pointers)
 malloc(node_size_num_bytes)
 store_data(ans, prev_ptr, %rData)
+# increment length of list
+get_length(%rHead)
+addi $t8, ans, 1
+sw $t8, data_offset(%rHead)
 .end_macro
 
 # TODO: write remove(idx)
@@ -191,13 +214,16 @@ increment_pointers
 .end_macro
 
 # TODO: rewrite as insert(last)
-.macro enqueue(%rHead, %rData) # equivalent to insert(last, data)
+.macro enqueue(%rHead, %rData) # equivalent to insert(last)
 move curr_ptr, %rHead # reset current pointer to head
 addi temp_loop_variable, $zero, 1
 while2(temp_loop_variable, enqueue_body)
 malloc(node_size_num_bytes)
 store_data(ans, prev_ptr, %rData)
-
+# increment length of list
+get_length(%rHead)
+addi $t8, ans, 1
+sw $t8, data_offset(%rHead)
 .end_macro
 
 .macro print_list_loop_body
@@ -250,7 +276,34 @@ sw $t8, data_offset(curr_ptr)
 .end_macro
 
 # random functions
-# TODO
+.macro init_rand()
+li lfsr, 0 # TODO: remove?
+lui lfsr, 0
+li lfsr, seed
+.end_macro
+
+.macro rand()
+# compute new feedback bit
+srl bit, lfsr, tap0
+srl $t8, lfsr, tap1
+xor bit, bit, $t8
+srl $t8, lfsr, tap2
+xor bit, bit, $t8
+srl $t8, lfsr, tap3
+xor bit, bit, $t8
+andi bit, bit, 0x0001
+# compute new LFSR value
+srl $t8, lfsr, 1
+sll $t9, bit, 15
+or lfsr, $t8, $t9
+move ans, lfsr
+.end_macro
+
+.macro test_rand_body
+rand()
+print_string("\n")
+print_int(ans)
+.end_macro
 
 # sorting functions
 # TODO
@@ -271,20 +324,29 @@ end_main_loop_body:
 .text
 .globl main
 main:
-print_string("\n\n-- Begin -- ")
+# TODO: uncomment
+#print_string("\n\n-- Begin -- ")
 
 #li main_loop_iterator, 0
 #for(main_loop_iterator, 0, 4, for_body)
 #li main_loop_iterator, 4
 #while(main_loop_iterator, while_body)
 
-li main_loop_iterator, 1
-init_head(head_ptr)
-while(main_loop_iterator, main_loop_body)
-li param1, 2
-li param2, 3
-swap(head_ptr, param1, param2)
-print_list(head_ptr)
+# TODO: uncomment
+#li main_loop_iterator, 1
+#init_head(head_ptr)
+#while(main_loop_iterator, main_loop_body)
+#print_list(head_ptr)
+init_rand()
+for(main_loop_iterator, $zero, 100, test_rand_body)
+
 # TODO: sort!
+#li param1, 2
+#li param2, 3
+#swap(head_ptr, param1, param2)
+
+#get_length(head_ptr)
+#print_string("\nlength: ")
+#print_int(ans)
 
 exit()
