@@ -61,6 +61,29 @@
 # test constants
 hello_string: .asciiz "Hello, World!\n" # test string
 
+uint16_max: .float 65536.0 # 2^16
+
+# datatype conversion functions
+.macro int2float(%rInt, %rFloat)
+#sub $sp, $sp, 32
+#sw %rInt, ($sp)
+#l.s %rFloat, ($sp)
+#addi $sp, $sp, 32
+
+mtc1 %rInt, %rFloat
+cvt.s.w %rFloat, %rFloat
+.end_macro
+
+.macro float2int(%rFloat, %rInt)
+#sub $sp, $sp, 32
+#s.s %rFloat, ($sp)
+#lw %rInt, ($sp)
+#addi $sp, $sp, 32
+
+cvt.w.s %rFloat, %rFloat
+mfc1 %rInt, %rFloat
+.end_macro
+
 # 1
 .macro print_int(%rInt)
 li $v0, print_int_code
@@ -74,16 +97,10 @@ li $a0, %int
 syscall
 .end_macro
 
-# 2
+# 2 - TODO: debug
 .macro print_float(%rFloat)
 li $v0, print_float_code
-move $a0, %rFloat
-syscall
-.end_macro
-
-.macro print_float_imm(%float)
-li $v0, print_float_code
-li $a0, %float
+mov.s $f12, %rFloat
 syscall
 .end_macro
 
@@ -282,7 +299,7 @@ lui lfsr, 0
 li lfsr, seed
 .end_macro
 
-.macro rand()
+.macro rand() # returns random 16-bit integer
 # compute new feedback bit
 srl bit, lfsr, tap0
 srl $t8, lfsr, tap1
@@ -299,10 +316,34 @@ or lfsr, $t8, $t9
 move ans, lfsr
 .end_macro
 
-.macro test_rand_body
+.macro rand_int(%rIntMax) # returns random int between 0 (inclusive) and $rIntMax
+#print_string("\nint max: ")
+#print_int(%rIntMax)
+int2float(%rIntMax, $f9)
+#print_string("\nfloat max: ")
+#print_float($f9)
 rand()
-print_string("\n")
+int2float(ans, $f8)
+#print_string("\nans: ")
+#print_float($f8)
+l.s $f10, uint16_max
+#print_string("\nuint16 max: ")
+#print_float($f10)
+mul.s $f11, $f8, $f9
+#print_string("\nmul ans: ")
+#print_float($f11)
+div.s $f11, $f11, $f10
+#print_string("\ndiv ans: ")
+#print_float($f11)
+#print_string("\n")
+float2int($f11, ans)
+.end_macro
+
+.macro test_rand_body
+li $t8, 10
+rand_int($t8)
 print_int(ans)
+print_string("\n")
 .end_macro
 
 # sorting functions
@@ -338,7 +379,7 @@ main:
 #while(main_loop_iterator, main_loop_body)
 #print_list(head_ptr)
 init_rand()
-for(main_loop_iterator, $zero, 100, test_rand_body)
+for(main_loop_iterator, $zero, 1000, test_rand_body)
 
 # TODO: sort!
 #li param1, 2
