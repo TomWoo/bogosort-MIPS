@@ -22,11 +22,11 @@
 # $t9 - local variable
 
 # ans - most recent answer returned
-.eqv ans $s0
-# param# - top-level function input param1eters
-.eqv param1 $s1
-.eqv param2 $s2
-.eqv param3 $s3
+.eqv ans $v1
+# param# - input parameter registers for top-level functions
+.eqv param1 $a1
+.eqv param2 $a2
+.eqv param3 $a3
 
 ## Constants
 
@@ -46,9 +46,8 @@
 
 # linked-list constants
 .eqv ptr_offset 0
-.eqv data_offset 32
-.eqv node_size 64
-.eqv node_size_num_bytes 8
+.eqv data_offset 4 # byte-addressable offset
+.eqv node_size 8 # bytes
 .eqv terminating_addr 0xDEADBEEF # what Trump is made of
 
 # RNG constants
@@ -262,6 +261,7 @@ move index, $zero
 move curr_ptr, %rHead # reset current pointer to head
 addi inner_loop_variable, $zero, 1
 while2(inner_loop_variable, print_list_loop_body)
+# TODO: refactor, place iterate in front so that the following section can be removed
 # print_list_loop_body, except w/o iterate
 lw $t8, data_offset(curr_ptr)
 beqz index, skip_metadata
@@ -350,15 +350,39 @@ print_string("\n")
 .end_macro
 
 # sorting functions
+.macro is_sorted_loop_body
+increment_pointers
+iterate
+addi $t8, index, -1 # TODO: hacky
+blez $t8, end_loop_body
+lw $t8, data_offset(curr_ptr)
+lw $t9, data_offset(prev_ptr)
+print_string("\ncomparing ")
+print_int($t8)
+print_string(" and ")
+print_int($t9)
+sub $t8, $t8, $t9
+blez $t8, return_false
+j end_loop_body
+return_false: li ans, 0 # TODO: return early
+end_loop_body:
+.end_macro
+
 .macro is_sorted(%rHead)
-# TODO: return 1 if sorted, 0 otherwise
+move index, $zero
+move curr_ptr, %rHead # reset current pointer to head
+addi inner_loop_variable, $zero, 1
+get_length(%rHead)
+move param3, ans # TODO: reserve param3
+li ans, 1 # set default return value to true
+for(inner_loop_iterator, $zero, param3, is_sorted_loop_body)
 .end_macro
 
 .macro bogosort_loop_body
 is_sorted(head_ptr)
 bgtz ans, terminate_bogosort_loop
 j end_bogosort_loop_body
-terminate_bogosort_loop: move inner_loop_iterator, $zero
+terminate_bogosort_loop: move inner_loop_variable, $zero
 end_bogosort_loop_body:
 .end_macro
 
@@ -398,7 +422,10 @@ print_list(head_ptr)
 #init_rand()
 #for(main_loop_iterator, $zero, 1000, test_rand_body)
 
-# TODO: sort!
+is_sorted(head_ptr)
+print_string("\nSorted? ")
+print_int(ans)
+
 #li param1, 2
 #li param2, 3
 #swap(head_ptr, param1, param2)
