@@ -357,10 +357,6 @@ addi $t8, index, -1 # TODO: hacky
 blez $t8, end_loop_body
 lw $t8, data_offset(curr_ptr)
 lw $t9, data_offset(prev_ptr)
-print_string("\ncomparing ")
-print_int($t8)
-print_string(" and ")
-print_int($t9)
 sub $t8, $t8, $t9
 blez $t8, return_false
 j end_loop_body
@@ -421,10 +417,6 @@ while(main_loop_iterator, main_loop_body)
 print_list(head_ptr)
 #init_rand()
 #for(main_loop_iterator, $zero, 1000, test_rand_body)
-
-is_sorted(head_ptr)
-print_string("\nSorted? ")
-print_int(ans)
 
 #li param1, 2
 #li param2, 3
