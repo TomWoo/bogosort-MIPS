@@ -5,12 +5,14 @@
 
 # main_loop_iterator - main loop iterator
 .eqv main_loop_iterator $t0
-# temp_loop_variable - temporary loop iterator/condition status
-.eqv temp_loop_variable $t1
+# inner_loop_variable - temporary loop iterator/condition status
+.eqv inner_loop_iterator $t1
+.eqv main_loop_variable $t2
+.eqv inner_loop_variable $t3
 # curr_ptr - linked list current pointer
-.eqv curr_ptr $t2
+.eqv curr_ptr $k0
 # prev_ptr - linked list previous pointer
-.eqv prev_ptr $t3
+.eqv prev_ptr $k1
 # head_ptr - linked list head pointer
 .eqv head_ptr $t4
 .eqv index $t5 # list index counter
@@ -158,7 +160,7 @@ end_for:
 print_string("Hello, World!\n")
 .end_macro
 
-# while loop
+# main while loop
 .macro while(%rCond, %bodyMacro)
 while_cond: beqz %rCond, end_while
 while_loop: %bodyMacro # must update $rCond
@@ -172,7 +174,8 @@ print_string("Hello, World!\n")
 addi main_loop_iterator, main_loop_iterator, -1 # update $rCond
 .end_macro
 
-# while2 loop
+# inner while loop, TODO: refactor
+# (hacky duplicate of main while loop used to avoid compiler detection of a loop upon macro unrolling)
 .macro while2(%rCond, %bodyMacro)
 while2_cond: beqz %rCond, end_while2
 while2_loop: %bodyMacro # must update $rCond
@@ -182,7 +185,7 @@ end_while2:
 
 # linked list functions
 .macro init_head(%rHead) # head contains list length as metadata
-malloc(node_size_num_bytes)
+malloc(node_size) # TODO: malloc(node_size_num_bytes)
 move %rHead, ans # initialize head pointer
 move curr_ptr, %rHead # set current pointer to head
 li $t8, terminating_addr
@@ -205,8 +208,8 @@ lw $t8, data_offset(%rAddr)
 
 .macro insert(%rHead, %rIdx, %rData)
 move curr_ptr, %rHead # reset current pointer to head
-for(temp_loop_variable, 0, %rIdx, increment_pointers)
-malloc(node_size_num_bytes)
+for(inner_loop_variable, 0, %rIdx, increment_pointers)
+malloc(node_size) # TODO: malloc(node_size_num_bytes)
 store_data(ans, prev_ptr, %rData)
 # increment length of list
 get_length(%rHead)
@@ -221,7 +224,7 @@ addi index, index, 1
 lw $t8, ptr_offset(curr_ptr)
 beq $t8, terminating_addr, terminate_iterate
 j end_iterate
-terminate_iterate: move temp_loop_variable, $zero
+terminate_iterate: move inner_loop_variable, $zero
 end_iterate:
 .end_macro
 
@@ -233,9 +236,9 @@ increment_pointers
 # TODO: rewrite as insert(last)
 .macro enqueue(%rHead, %rData) # equivalent to insert(last)
 move curr_ptr, %rHead # reset current pointer to head
-addi temp_loop_variable, $zero, 1
-while2(temp_loop_variable, enqueue_body)
-malloc(node_size_num_bytes)
+addi inner_loop_variable, $zero, 1
+while2(inner_loop_variable, enqueue_body)
+malloc(node_size) # TODO: malloc(node_size_num_bytes)
 store_data(ans, prev_ptr, %rData)
 # increment length of list
 get_length(%rHead)
@@ -257,8 +260,8 @@ iterate
 .macro print_list(%rHead)
 move index, $zero
 move curr_ptr, %rHead # reset current pointer to head
-addi temp_loop_variable, $zero, 1
-while2(temp_loop_variable, print_list_loop_body)
+addi inner_loop_variable, $zero, 1
+while2(inner_loop_variable, print_list_loop_body)
 # print_list_loop_body, except w/o iterate
 lw $t8, data_offset(curr_ptr)
 beqz index, skip_metadata
@@ -276,19 +279,19 @@ lw ans, data_offset(%rHead)
 .macro swap(%rHead, %rIdx1, %rIdx2)
 # save data1
 move curr_ptr, %rHead # reset current pointer to head
-for(temp_loop_variable, $zero, %rIdx1, increment_pointers)
+for(inner_loop_variable, $zero, %rIdx1, increment_pointers)
 lw $t8, data_offset(curr_ptr)
 # save data2
 move curr_ptr, head_ptr # reset current pointer to head
-for(temp_loop_variable, $zero, %rIdx2, increment_pointers)
+for(inner_loop_variable, $zero, %rIdx2, increment_pointers)
 lw $t9, data_offset(curr_ptr)
 # overwrite node1 w/ data2
 move curr_ptr, head_ptr # reset current pointer to head
-for(temp_loop_variable, $zero, %rIdx1, increment_pointers)
+for(inner_loop_variable, $zero, %rIdx1, increment_pointers)
 sw $t9, data_offset(curr_ptr)
 # overwrite node2 w/ data1
 move curr_ptr, head_ptr # reset current pointer to head
-for(temp_loop_variable, $zero, %rIdx2, increment_pointers)
+for(inner_loop_variable, $zero, %rIdx2, increment_pointers)
 sw $t8, data_offset(curr_ptr)
 .end_macro
 
@@ -347,10 +350,25 @@ print_string("\n")
 .end_macro
 
 # sorting functions
-# TODO
+.macro is_sorted(%rHead)
+# TODO: return 1 if sorted, 0 otherwise
+.end_macro
+
+.macro bogosort_loop_body
+is_sorted(head_ptr)
+bgtz ans, terminate_bogosort_loop
+j end_bogosort_loop_body
+terminate_bogosort_loop: move inner_loop_iterator, $zero
+end_bogosort_loop_body:
+.end_macro
+
+.macro bogosort
+
+.end_macro
 
 # main
 .macro main_loop_body
+# user input
 print_string("\nEnter a real number: ")
 read_int()
 # TODO: exception handling
@@ -366,20 +384,19 @@ end_main_loop_body:
 .globl main
 main:
 # TODO: uncomment
-#print_string("\n\n-- Begin -- ")
+print_string("\n\n-- Begin -- ")
 
 #li main_loop_iterator, 0
 #for(main_loop_iterator, 0, 4, for_body)
 #li main_loop_iterator, 4
 #while(main_loop_iterator, while_body)
 
-# TODO: uncomment
-#li main_loop_iterator, 1
-#init_head(head_ptr)
-#while(main_loop_iterator, main_loop_body)
-#print_list(head_ptr)
-init_rand()
-for(main_loop_iterator, $zero, 1000, test_rand_body)
+li main_loop_iterator, 1
+init_head(head_ptr)
+while(main_loop_iterator, main_loop_body)
+print_list(head_ptr)
+#init_rand()
+#for(main_loop_iterator, $zero, 1000, test_rand_body)
 
 # TODO: sort!
 #li param1, 2
