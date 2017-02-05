@@ -52,7 +52,7 @@
 
 # RNG constants
 .eqv seed 0xACE1
-# NOTE: The following constants are technically 16 minus each of the taps.
+# NOTE: Are the following constants technically 15 minus each of the taps?
 .eqv tap0 0
 .eqv tap1 2
 .eqv tap2 3
