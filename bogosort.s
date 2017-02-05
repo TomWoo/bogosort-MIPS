@@ -282,15 +282,15 @@ move curr_ptr, %rHead # reset current pointer to head
 for(inner_loop_variable, $zero, %rIdx1, increment_pointers)
 lw $t8, data_offset(curr_ptr)
 # save data2
-move curr_ptr, head_ptr # reset current pointer to head
+move curr_ptr, %rHead # reset current pointer to head
 for(inner_loop_variable, $zero, %rIdx2, increment_pointers)
 lw $t9, data_offset(curr_ptr)
 # overwrite node1 w/ data2
-move curr_ptr, head_ptr # reset current pointer to head
+move curr_ptr, %rHead # reset current pointer to head
 for(inner_loop_variable, $zero, %rIdx1, increment_pointers)
 sw $t9, data_offset(curr_ptr)
 # overwrite node2 w/ data1
-move curr_ptr, head_ptr # reset current pointer to head
+move curr_ptr, %rHead # reset current pointer to head
 for(inner_loop_variable, $zero, %rIdx2, increment_pointers)
 sw $t8, data_offset(curr_ptr)
 .end_macro
@@ -374,17 +374,27 @@ for(inner_loop_iterator, $zero, param3, is_sorted_loop_body)
 .end_macro
 
 .macro bogosort_loop_body
-
-is_sorted(head_ptr)
+# randomly swap two elements
+rand_int(param2)
+move $t8, ans
+loop: rand_int(param2)
+beq $t8, ans, loop
+move $t9, ans
+swap(head_ptr, $t8, $t9) # TODO: refactor
+# check whether linked list is sorted
+is_sorted(head_ptr) # TODO: refactor
 bgtz ans, terminate_bogosort_loop
 j end_bogosort_loop_body
-terminate_bogosort_loop: move inner_loop_variable, $zero
+terminate_bogosort_loop: move inner_loop_variable, $zero # TODO: bug!
 end_bogosort_loop_body:
 .end_macro
 
 .macro bogosort(%rHead)
-# technically bozosort
-while2(inner_loop_variable
+# bozosort algorithm
+li inner_loop_variable, 1
+get_length(%rHead)
+move param2, ans # TODO: reserve param2
+while2(inner_loop_variable, bogosort_loop_body)
 .end_macro
 
 # main
@@ -414,18 +424,17 @@ print_string("\n\n-- Begin -- ")
 li main_loop_iterator, 1
 init_head(head_ptr)
 while(main_loop_iterator, main_loop_body)
-print_list(head_ptr)
-is_sorted(head_ptr)
-print_int(ans)
+print_list(head_ptr) # before
+
+bogosort(head_ptr)
+print_string("\n")
+print_list(head_ptr) # after
+
 #init_rand()
 #for(main_loop_iterator, $zero, 1000, test_rand_body)
 
 #li param1, 2
 #li param2, 3
 #swap(head_ptr, param1, param2)
-
-#get_length(head_ptr)
-#print_string("\nlength: ")
-#print_int(ans)
 
 exit()
