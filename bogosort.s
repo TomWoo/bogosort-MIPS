@@ -367,7 +367,6 @@ end_loop_body:
 .macro is_sorted(%rHead)
 move index, $zero
 move curr_ptr, %rHead # reset current pointer to head
-addi inner_loop_variable, $zero, 1
 get_length(%rHead)
 move param3, ans # TODO: reserve param3
 li ans, 1 # set default return value to true
@@ -375,6 +374,7 @@ for(inner_loop_iterator, $zero, param3, is_sorted_loop_body)
 .end_macro
 
 .macro bogosort_loop_body
+
 is_sorted(head_ptr)
 bgtz ans, terminate_bogosort_loop
 j end_bogosort_loop_body
@@ -382,8 +382,9 @@ terminate_bogosort_loop: move inner_loop_variable, $zero
 end_bogosort_loop_body:
 .end_macro
 
-.macro bogosort
-
+.macro bogosort(%rHead)
+# technically bozosort
+while2(inner_loop_variable
 .end_macro
 
 # main
@@ -403,7 +404,6 @@ end_main_loop_body:
 .text
 .globl main
 main:
-# TODO: uncomment
 print_string("\n\n-- Begin -- ")
 
 #li main_loop_iterator, 0
@@ -415,6 +415,8 @@ li main_loop_iterator, 1
 init_head(head_ptr)
 while(main_loop_iterator, main_loop_body)
 print_list(head_ptr)
+is_sorted(head_ptr)
+print_int(ans)
 #init_rand()
 #for(main_loop_iterator, $zero, 1000, test_rand_body)
 
