@@ -46,8 +46,8 @@
 
 # linked-list constants
 .eqv ptr_offset 0
-.eqv data_offset 32 # byte-addressable offset
-.eqv node_size 64 # TODO: bits?
+.eqv data_offset 4 # byte-addressable offset
+.eqv node_size 8 # TODO: bytes
 .eqv terminating_addr 0xDEADBEEF # what Trump is made of
 
 # RNG constants
@@ -380,28 +380,24 @@ move param2, ans # TODO: reserve param2
 
 # check whether linked list is sorted
 begin_loop:
-print_string("\nbegin loop ")
-print_list(%rHead)
 is_sorted(%rHead)
 print_int(ans)
 beqz ans, loop
 j end_loop
 # randomly swap two elements
 loop:
-print_string("\nparam2: ")
-print_int(param2)
 rand_int(param2)
-addi $t8, ans, 1
-print_string("\nt8: ")
-print_int($t8)
+addi $s0, ans, 1
 inner_loop: rand_int(param2)
-print_string("\nstuck here ")
-print_int(ans)
-beq $t8, ans, inner_loop
-addi $t9, ans, 1
-print_string("\nt9: ")
-print_int($t9)
-swap(%rHead, $t8, $t9)
+addi $s1, ans, 1
+beq $s0, $s1, inner_loop
+swap(%rHead, $s0, $s1)
+print_string("\nswapped ")
+print_int($s0)
+print_string(" and ")
+print_int($s1)
+print_string("\nresult: ")
+print_list(%rHead)
 j begin_loop
 end_loop:
 .end_macro
@@ -436,10 +432,10 @@ li main_loop_variable, 1
 while(main_loop_variable, main_loop_body)
 print_list(head_ptr) # before
 
-#bogosort(head_ptr)
-li $t8, 2
-li $t9, 3
-swap(head_ptr, $t8, $t9)
+bogosort(head_ptr)
+#li $s0, 2
+#li $s1, 3
+#swap(head_ptr, $s0, $s1)
 print_string("\n")
 print_list(head_ptr) # after
 
