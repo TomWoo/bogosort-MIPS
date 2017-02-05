@@ -46,8 +46,8 @@
 
 # linked-list constants
 .eqv ptr_offset 0
-.eqv data_offset 4 # byte-addressable offset
-.eqv node_size 8 # bytes
+.eqv data_offset 32 # byte-addressable offset
+.eqv node_size 64 # TODO: bits?
 .eqv terminating_addr 0xDEADBEEF # what Trump is made of
 
 # RNG constants
@@ -170,7 +170,7 @@ end_while:
 # TODO: remove
 .macro while_body
 print_string("Hello, World!\n")
-addi main_loop_iterator, main_loop_iterator, -1 # update $rCond
+addi main_loop_variable, main_loop_variable, -1 # update $rCond
 .end_macro
 
 # inner while loop, TODO: refactor
@@ -207,7 +207,7 @@ lw $t8, data_offset(%rAddr)
 
 .macro insert(%rHead, %rIdx, %rData)
 move curr_ptr, %rHead # reset current pointer to head
-for(inner_loop_variable, 0, %rIdx, increment_pointers)
+for(inner_loop_iterator, $zero, %rIdx, increment_pointers)
 malloc(node_size) # TODO: malloc(node_size_num_bytes)
 store_data(ans, prev_ptr, %rData)
 # increment length of list
@@ -223,7 +223,7 @@ addi index, index, 1
 lw $t8, ptr_offset(curr_ptr)
 beq $t8, terminating_addr, terminate_iterate
 j end_iterate
-terminate_iterate: move inner_loop_variable, $zero
+terminate_iterate: li inner_loop_variable, 0
 end_iterate:
 .end_macro
 
@@ -235,7 +235,7 @@ increment_pointers
 # TODO: rewrite as insert(last)
 .macro enqueue(%rHead, %rData) # equivalent to insert(last)
 move curr_ptr, %rHead # reset current pointer to head
-addi inner_loop_variable, $zero, 1
+li inner_loop_variable, 1
 while2(inner_loop_variable, enqueue_body)
 malloc(node_size) # TODO: malloc(node_size_num_bytes)
 store_data(ans, prev_ptr, %rData)
@@ -259,7 +259,7 @@ iterate
 .macro print_list(%rHead)
 move index, $zero
 move curr_ptr, %rHead # reset current pointer to head
-addi inner_loop_variable, $zero, 1
+li inner_loop_variable, 1
 while2(inner_loop_variable, print_list_loop_body)
 # TODO: refactor, place iterate in front so that the following section can be removed
 # print_list_loop_body, except w/o iterate
@@ -279,19 +279,19 @@ lw ans, data_offset(%rHead)
 .macro swap(%rHead, %rIdx1, %rIdx2)
 # save data1
 move curr_ptr, %rHead # reset current pointer to head
-for(inner_loop_variable, $zero, %rIdx1, increment_pointers)
+for(inner_loop_iterator, $zero, %rIdx1, increment_pointers)
 lw $t8, data_offset(curr_ptr)
 # save data2
 move curr_ptr, %rHead # reset current pointer to head
-for(inner_loop_variable, $zero, %rIdx2, increment_pointers)
+for(inner_loop_iterator, $zero, %rIdx2, increment_pointers)
 lw $t9, data_offset(curr_ptr)
 # overwrite node1 w/ data2
 move curr_ptr, %rHead # reset current pointer to head
-for(inner_loop_variable, $zero, %rIdx1, increment_pointers)
+for(inner_loop_iterator, $zero, %rIdx1, increment_pointers)
 sw $t9, data_offset(curr_ptr)
 # overwrite node2 w/ data1
 move curr_ptr, %rHead # reset current pointer to head
-for(inner_loop_variable, $zero, %rIdx2, increment_pointers)
+for(inner_loop_iterator, $zero, %rIdx2, increment_pointers)
 sw $t8, data_offset(curr_ptr)
 .end_macro
 
@@ -373,28 +373,37 @@ li ans, 1 # set default return value to true
 for(inner_loop_iterator, $zero, param3, is_sorted_loop_body)
 .end_macro
 
-.macro bogosort_loop_body
-# randomly swap two elements
-rand_int(param2)
-move $t8, ans
-loop: rand_int(param2)
-beq $t8, ans, loop
-move $t9, ans
-swap(head_ptr, $t8, $t9) # TODO: refactor
-# check whether linked list is sorted
-is_sorted(head_ptr) # TODO: refactor
-bgtz ans, terminate_bogosort_loop
-j end_bogosort_loop_body
-terminate_bogosort_loop: move inner_loop_variable, $zero # TODO: bug!
-end_bogosort_loop_body:
-.end_macro
-
 .macro bogosort(%rHead)
-# bozosort algorithm
-li inner_loop_variable, 1
+# implemented as bozosort algorithm
 get_length(%rHead)
 move param2, ans # TODO: reserve param2
-while2(inner_loop_variable, bogosort_loop_body)
+
+# check whether linked list is sorted
+begin_loop:
+print_string("\nbegin loop ")
+print_list(%rHead)
+is_sorted(%rHead)
+print_int(ans)
+beqz ans, loop
+j end_loop
+# randomly swap two elements
+loop:
+print_string("\nparam2: ")
+print_int(param2)
+rand_int(param2)
+addi $t8, ans, 1
+print_string("\nt8: ")
+print_int($t8)
+inner_loop: rand_int(param2)
+print_string("\nstuck here ")
+print_int(ans)
+beq $t8, ans, inner_loop
+addi $t9, ans, 1
+print_string("\nt9: ")
+print_int($t9)
+swap(%rHead, $t8, $t9)
+j begin_loop
+end_loop:
 .end_macro
 
 # main
@@ -407,30 +416,33 @@ bltz ans, terminate_main_loop
 move param1, ans
 enqueue(head_ptr, param1)
 j end_main_loop_body
-terminate_main_loop: move main_loop_iterator, $zero
+terminate_main_loop: li main_loop_variable, 0
 end_main_loop_body:
 .end_macro
 
 .text
 .globl main
 main:
+init_rand() # required
 print_string("\n\n-- Begin -- ")
 
 #li main_loop_iterator, 0
 #for(main_loop_iterator, 0, 4, for_body)
-#li main_loop_iterator, 4
-#while(main_loop_iterator, while_body)
+#li main_loop_variable, 4
+#while(main_loop_variable, while_body)
 
-li main_loop_iterator, 1
 init_head(head_ptr)
-while(main_loop_iterator, main_loop_body)
+li main_loop_variable, 1
+while(main_loop_variable, main_loop_body)
 print_list(head_ptr) # before
 
-bogosort(head_ptr)
+#bogosort(head_ptr)
+li $t8, 2
+li $t9, 3
+swap(head_ptr, $t8, $t9)
 print_string("\n")
 print_list(head_ptr) # after
 
-#init_rand()
 #for(main_loop_iterator, $zero, 1000, test_rand_body)
 
 #li param1, 2
